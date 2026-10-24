@@ -30,7 +30,7 @@ classical fourth-order Runge-Kutta (RK4), and Velocity Verlet.
 The visualizer can be started with the Earth-Moon example in
 [data/Moon-Earth.txt](data/Moon-Earth.txt).
 
-[Orbital simulator demonstration](assets\AnimationEarthMoonVerlet.gif)
+![Animación Tierra-Luna](assets/AnimationEarthMoonVerlet.gif)
 
 ## Installation
 

@@ -1,0 +1,10 @@
+type,name,mass_kg,distance_m,velocity_m_s,inclination_deg,color,size
+central,Sun,1.989e30,0,0,0,orange,15
+body,Mercury,3.3011e23,5.791e10,4.785e4,7.00,gray,3
+body,Venus,4.8675e24,1.082e11,3.502e4,3.39,yellow,5
+body,Earth,5.972e24,1.496e11,2.978e4,0,blue,6
+body,Mars,6.4171e23,2.279e11,2.407e4,1.85,red,4
+body,Jupiter,1.8982e27,7.785e11,1.307e4,1.30,orange,10
+body,Saturn,5.6834e26,1.429e12,9.68e3,2.49,gold,8
+body,Uranus,8.6810e25,2.871e12,6.80e3,0.77,cyan,7
+body,Neptune,1.02413e26,4.495e12,5.43e3,1.77,darkblue,7

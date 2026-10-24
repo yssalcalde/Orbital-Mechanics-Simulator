@@ -162,6 +162,12 @@ N-body solar-system simulator.
 └── README.md
 ```
 
+## License
+
+This project is released under the [MIT License](LICENSE). You may use,
+modify, and redistribute the code, provided that the original copyright and
+license notice are retained. The software is provided without warranty.
+
 ## Possible future work
 
 - General N-body dynamics and barycentric coordinates.

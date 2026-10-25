@@ -1,9 +1,24 @@
+from __future__ import annotations
+
+from typing import Final
+
 import numpy as np
 
-G = 6.67430e-11  # Gravitational constant in m^3 kg^-1 s^-2
+G: Final = 6.67430e-11
 
 class Planet:
-    def __init__(self, name, mass, distance, velocity, inclination, color, size):
+    """Point-mass body orbiting a fixed central mass."""
+
+    def __init__(
+        self,
+        name: str,
+        mass: float,
+        distance: float,
+        velocity: float,
+        inclination: float,
+        color: str,
+        size: int,
+    ) -> None:
         if mass <= 0:
             raise ValueError("Planet mass must be positive.")
         if distance <= 0:
@@ -14,32 +29,32 @@ class Planet:
         self.color = color
         self.size = int(size)
 
-        # Inclination in degrees, converted to radians for calculations
         self.inclination = np.radians(float(inclination))
-
-        #Initial position in the nodal place X axis ; ||r||=distance
-        self.position= np.array([distance, 0.0,0.0], dtype=np.float64)
-
-        #Orbital velocity with exact rotation in the YZ plane ; ||v|| = velocity
+        self.position = np.array([distance, 0.0, 0.0], dtype=np.float64)
         self.velocity = np.array([
             0.0,
             velocity * np.cos(self.inclination),
             velocity * np.sin(self.inclination)
         ], dtype=np.float64)
+        self.trajectory: list[np.ndarray] = [self.position.copy()]
 
-        self.trajectory = [self.position.copy()]  # Store the trajectory of the planet
-
-    def compute_acceleration(self, position, central_mass, central_position):
-        # Calculate the vector from the planet to the central mass
+    def compute_acceleration(
+        self,
+        position: np.ndarray,
+        central_mass: float,
+        central_position: np.ndarray,
+    ) -> np.ndarray:
+        """Return gravitational acceleration at ``position``."""
         r_vector = position - central_position
         r_norm = np.linalg.norm(r_vector)
-
-
         if r_norm == 0:
-            return np.zeros(3, dtype=np.float64)  # Avoid division by zero if the planet is at the central mass position
-        return -G * central_mass*r_vector / (r_norm ** 3)
-    def specific_energy(self, central_mass, central_position):
-        '''E = K + U = 1/2 * ||v||^2 - G * M / ||r||'''
+            return np.zeros(3, dtype=np.float64)
+        return -G * central_mass * r_vector / r_norm**3
+
+    def specific_energy(
+        self, central_mass: float, central_position: np.ndarray
+    ) -> float:
+        """Return specific orbital energy, ``v²/2 - GM/r``."""
 
         v_sq = np.dot(self.velocity, self.velocity)
         r_vector = self.position - central_position
@@ -49,14 +64,19 @@ class Planet:
             raise ValueError("Specific energy is undefined at zero distance.")
 
         return 0.5 * v_sq - G * central_mass / r_norm
-    def  specific_angular_momentum(self, central_position):
-        '''h = r x v'''
-
+    def specific_angular_momentum(self, central_position: np.ndarray) -> np.ndarray:
+        """Return the specific angular-momentum vector, ``r × v``."""
         r_vector = self.position - central_position
         return np.cross(r_vector, self.velocity)
 
-    def update (self, dt, central_mass, central_position, method ="rk4"):
-        '''Updaate a dt step using the specified algorithm :'euler', 'euler_implicit', 'rk4' or 'verlet' '''
+    def update(
+        self,
+        dt: float,
+        central_mass: float,
+        central_position: np.ndarray,
+        method: str = "rk4",
+    ) -> None:
+        """Advance one step using the selected numerical integration method."""
         if dt <= 0:
             raise ValueError("Time step dt must be positive.")
         if central_mass <= 0:
@@ -75,15 +95,17 @@ class Planet:
             raise ValueError("Unknown method: {}. Choose from 'euler', 'euler_implicit', 'rk4', or 'verlet'.".format(method))
 
         self.trajectory.append(self.position.copy())
-    ####Add each method
-
-    def update_euler(self, dt, central_mass, central_position):
-        '''Update the planet's position and velocity using the explicit Euler method.First-order Explicit Euler (energy non-conserving, artificially expands orbit).'''
+    def update_euler(
+        self, dt: float, central_mass: float, central_position: np.ndarray
+    ) -> None:
+        """Advance with first-order explicit Euler."""
         acceleration = self.compute_acceleration(self.position, central_mass, central_position)
         self.position += self.velocity * dt
         self.velocity += acceleration * dt
 
-    def update_euler_implicit(self, dt, central_mass, central_position):
+    def update_euler_implicit(
+        self, dt: float, central_mass: float, central_position: np.ndarray
+    ) -> None:
         """Implicit Euler solved via Newton-Raphson using an analytical 6x6 Jacobian matrix."""
         def equations(state):
             pos = state[:3]
@@ -127,7 +149,9 @@ class Planet:
         self.position = state[:3]
         self.velocity = state[3:]
 
-    def update_rk4(self, dt, central_mass, central_position):
+    def update_rk4(
+        self, dt: float, central_mass: float, central_position: np.ndarray
+    ) -> None:
         """Fourth-order classical Runge-Kutta integrator."""
         k1_x = self.velocity
         k1_v = self.compute_acceleration(self.position, central_mass, central_position)
@@ -144,7 +168,9 @@ class Planet:
         self.position += (dt / 6.0) * (k1_x + 2 * k2_x + 2 * k3_x + k4_x)
         self.velocity += (dt / 6.0) * (k1_v + 2 * k2_v + 2 * k3_v + k4_v)
 
-    def update_verlet(self, dt, central_mass, central_position):
+    def update_verlet(
+        self, dt: float, central_mass: float, central_position: np.ndarray
+    ) -> None:
         """Second-order Velocity Verlet integrator (symplectic, preserves phase space volume)."""
 
         acceleration = self.compute_acceleration(self.position, central_mass, central_position)
@@ -152,10 +178,46 @@ class Planet:
         new_acceleration = self.compute_acceleration(self.position, central_mass, central_position)
         self.velocity += 0.5 * (acceleration + new_acceleration) * dt
 
-def circular_orbital_velocity(central_mass, distance):
+def circular_orbital_velocity(central_mass: float, distance: float) -> float:
     """Calculate the circular orbital velocity for a given central mass and distance."""
     if central_mass <= 0:
         raise ValueError("Central mass must be positive.")
     if distance <= 0:
         raise ValueError("Orbital distance must be positive.")
     return np.sqrt(G * central_mass / distance)
+
+
+def analytical_circular_state(
+    central_mass: float,
+    distance: float,
+    inclination: float,
+    time: float,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Return the exact position and velocity for a circular orbit.
+
+    The initial state is at ``(distance, 0, 0)`` with the velocity direction
+    used by :class:`Planet`. ``inclination`` is expressed in degrees.
+    """
+    if central_mass <= 0:
+        raise ValueError("Central mass must be positive.")
+    if distance <= 0:
+        raise ValueError("Orbital distance must be positive.")
+    if time < 0:
+        raise ValueError("Time must not be negative.")
+
+    inclination_rad = np.radians(float(inclination))
+    speed = circular_orbital_velocity(central_mass, distance)
+    angular_rate = speed / distance
+    angle = angular_rate * time
+    cos_angle, sin_angle = np.cos(angle), np.sin(angle)
+    cos_inclination, sin_inclination = (
+        np.cos(inclination_rad),
+        np.sin(inclination_rad),
+    )
+    position = distance * np.array(
+        [cos_angle, sin_angle * cos_inclination, sin_angle * sin_inclination]
+    )
+    velocity = speed * np.array(
+        [-sin_angle, cos_angle * cos_inclination, cos_angle * sin_inclination]
+    )
+    return position, velocity

@@ -70,7 +70,6 @@ The visualizer provides:
   displayed frame;
 - **dt multiplier**, which changes the physical time step while running;
 - mouse-wheel or touchpad scrolling for camera zoom;
-- mouse dragging for rotating the 3D view.
 
 `dt multiplier` affects the numerical simulation. Zoom affects only the camera.
 Increasing the physical time step can make the animation faster, but can also
@@ -96,7 +95,50 @@ two-hour step. It generates:
 
 The convergence study compares each method with an RK4 reference solution
 using a 60-second time step. The tested steps are 14,400, 7,200, 3,600,
-1,800, and 900 seconds.
+1,800, and 900 seconds. The CSV includes an observed convergence order for
+each refinement where both runs succeed. Failed runs are retained with an
+explicit status and `NaN` error/order values rather than being presented as
+successful measurements.
+
+## Methodology
+
+The simulator solves the restricted Newtonian two-body equations
+
+```text
+r' = v
+v' = -G M r / |r|^3
+```
+
+The central body is fixed at the origin, so each orbiting body is integrated
+independently. Explicit Euler, implicit Euler (Newton iteration), classical
+RK4, and velocity Verlet update the position and velocity state. The
+benchmark measures distance, specific-energy error, specific-angular-momentum
+error, final position error, runtime, and the measured order obtained from
+successive time-step refinements.
+
+For a circular orbit, the analytical reference is
+`r(t) = R [cos(nt), sin(nt) cos(i), sin(nt) sin(i)]`, where
+`n = sqrt(GM/R^3)`. The numerical test suite compares RK4 against this
+solution. This is a validation case, not a replacement for a general
+elliptical Kepler solver.
+
+## Results
+
+Run the benchmark locally to regenerate the figures and CSV. The expected
+qualitative result is first-order convergence for Explicit Euler, second-order
+convergence for Velocity Verlet, and fourth-order convergence for RK4 while
+the tested steps remain in their accuracy regime. Implicit Euler is also
+first-order and may fail to converge for an overly large step because it uses
+a finite Newton-Raphson iteration budget. The generated CSV reports the
+measured values for the current machine and should be used for exact numerical
+comparisons.
+
+Run the automated checks with:
+
+```powershell
+python -m pip install -e ".[dev]"
+python -m pytest
+```
 
 ## Numerical interpretation
 
@@ -159,6 +201,9 @@ N-body solar-system simulator.
 │   └── visualizer.py          # Matplotlib 3D animation
 ├── main.py                    # GUI entry point
 ├── requirements.txt
+├── pyproject.toml              # Project metadata and development tools
+├── tests/                      # Parser and numerical regression tests
+├── .github/workflows/tests.yml # Continuous integration
 └── README.md
 ```
 

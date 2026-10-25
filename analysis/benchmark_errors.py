@@ -96,7 +96,11 @@ def simulate(
     duration: float,
     store_history: bool = True,
 ) -> SimulationResult:
-    """Simulate one method and retain physical diagnostics."""
+    """Simulate one method and retain physical diagnostics.
+
+    A failed or non-finite step is reported in ``failure`` and all metrics
+    after the last valid state are omitted.
+    """
     central_position = np.zeros(3, dtype=np.float64)
     planet = clone_planet(system.planet)
     steps = int(np.ceil(duration / dt))
@@ -115,6 +119,11 @@ def simulate(
     for step in range(1, steps + 1):
         try:
             planet.update(dt, system.central_mass, central_position, method)
+            if not (
+                np.all(np.isfinite(planet.position))
+                and np.all(np.isfinite(planet.velocity))
+            ):
+                raise FloatingPointError("state became non-finite")
             positions[step] = planet.position
             velocities[step] = planet.velocity
             energies[step] = planet.specific_energy(system.central_mass, central_position)
@@ -143,6 +152,8 @@ def simulate(
 def relative_error(values: np.ndarray, initial: np.ndarray) -> np.ndarray:
     """Return the relative norm error for a vector history."""
     denominator = np.linalg.norm(initial)
+    if denominator == 0:
+        raise ValueError("Relative error is undefined for a zero initial vector.")
     return np.linalg.norm(values - initial, axis=1) / denominator
 
 
@@ -168,8 +179,10 @@ def plot_main_benchmark(
         distance_axis.plot(days, np.linalg.norm(result.positions, axis=1) / 1e6, label=label)
         energy_error = np.abs((result.energies - initial_energy) / initial_energy)
         momentum_error = relative_error(result.angular_momenta, initial_momentum)
-        energy_axis.semilogy(days, energy_error, label=label)
-        momentum_axis.semilogy(days, momentum_error, label=label)
+        energy_axis.semilogy(days, np.maximum(energy_error, np.finfo(float).tiny), label=label)
+        momentum_axis.semilogy(
+            days, np.maximum(momentum_error, np.finfo(float).tiny), label=label
+        )
         orbit_axis.plot(
             result.positions[:, 0] / 1e6,
             result.positions[:, 1] / 1e6,
@@ -205,34 +218,87 @@ def plot_main_benchmark(
 
 
 def run_convergence_study(system: System, duration: float) -> None:
-    """Measure final position error and runtime for several time steps."""
+    """Measure final position error, runtime, and observed order of accuracy."""
     time_steps = (14_400.0, 7_200.0, 3_600.0, 1_800.0, 900.0)
     rows: list[dict[str, str | float]] = []
     figure, (error_axis, runtime_axis) = plt.subplots(1, 2, figsize=(13, 5))
 
     for method in METHODS:
-        errors = []
-        runtimes = []
+        errors: list[float] = []
+        runtimes: list[float] = []
+        statuses: list[str] = []
         for dt in time_steps:
             result = simulate(method, system, dt, duration, store_history=False)
             reference_duration = result.times[-1]
             reference = simulate(
                 "rk4", system, REFERENCE_TIME_STEP, reference_duration, store_history=False
             )
-            position_error = np.linalg.norm(result.positions[-1] - reference.positions[-1])
+            if result.failure is not None or reference.failure is not None:
+                position_error = float("nan")
+            else:
+                position_error = float(
+                    np.linalg.norm(result.positions[-1] - reference.positions[-1])
+                )
             errors.append(position_error)
             runtimes.append(result.runtime)
+            if result.failure is not None:
+                statuses.append(result.failure)
+            elif reference.failure is not None:
+                statuses.append(f"reference failed: {reference.failure}")
+            else:
+                statuses.append("completed")
+        orders = [float("nan")]
+        for coarse_error, fine_error, coarse_dt, fine_dt in zip(
+            errors, errors[1:], time_steps, time_steps[1:]
+        ):
+            if (
+                np.isfinite(coarse_error)
+                and np.isfinite(fine_error)
+                and coarse_error > 0
+                and fine_error > 0
+            ):
+                orders.append(
+                    float(
+                        np.log(coarse_error / fine_error)
+                        / np.log(coarse_dt / fine_dt)
+                    )
+                )
+            else:
+                orders.append(float("nan"))
+        for dt, error, runtime, order, status in zip(
+            time_steps, errors, runtimes, orders, statuses
+        ):
             rows.append(
                 {
                     "method": method,
                     "time_step_s": dt,
-                    "final_position_error_m": position_error,
-                    "runtime_s": result.runtime,
-                    "status": "completed" if result.failure is None else result.failure,
+                    "final_position_error_m": error,
+                    "observed_order": order,
+                    "runtime_s": runtime,
+                    "status": status,
                 }
             )
-        error_axis.loglog(time_steps, errors, "o-", label=METHOD_LABELS[method])
-        runtime_axis.loglog(time_steps, runtimes, "o-", label=METHOD_LABELS[method])
+        finite_errors = np.isfinite(errors)
+        if np.any(finite_errors):
+            error_axis.loglog(
+                np.asarray(time_steps)[finite_errors],
+                np.asarray(errors)[finite_errors],
+                "o-",
+                label=METHOD_LABELS[method],
+            )
+        finite_runtimes = np.isfinite(runtimes) & (np.asarray(runtimes) > 0)
+        runtime_axis.loglog(
+            np.asarray(time_steps)[finite_runtimes],
+            np.asarray(runtimes)[finite_runtimes],
+            "o-",
+            label=METHOD_LABELS[method],
+        )
+        measured_orders = np.asarray(orders)[np.isfinite(orders)]
+        if measured_orders.size:
+            print(
+                f"{METHOD_LABELS[method]} observed orders: "
+                + ", ".join(f"{order:.2f}" for order in measured_orders)
+            )
 
     error_axis.set_title("Convergence against RK4 reference")
     error_axis.set_xlabel("Time step (s)")

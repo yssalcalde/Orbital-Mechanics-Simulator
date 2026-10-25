@@ -3,14 +3,13 @@
 from __future__ import annotations
 
 import csv
+import tkinter as tk
 from dataclasses import dataclass
 from pathlib import Path
 from tkinter import DoubleVar, StringVar, filedialog, messagebox
-import tkinter as tk
 
 from .physics import Planet
 from .visualizer import visualize_system
-
 
 METHODS = {
     "Explicit Euler": "euler",

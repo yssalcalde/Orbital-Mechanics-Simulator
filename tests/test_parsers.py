@@ -5,7 +5,6 @@ import pytest
 from analysis.benchmark_errors import load_system as load_benchmark_system
 from src.gui import load_system
 
-
 DATA_FILE = Path(__file__).parents[1] / "data" / "Moon-Earth.txt"
 
 

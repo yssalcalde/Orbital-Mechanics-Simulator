@@ -16,7 +16,6 @@ sys.path.insert(0, str(ROOT))
 
 from src.physics import G, Planet
 
-
 DATA_FILE = ROOT / "data" / "Moon-Earth.txt"
 ASSETS = ROOT / "assets"
 MAIN_FIGURE = ASSETS / "benchmark_errors.png"
@@ -31,6 +30,29 @@ METHOD_LABELS = {
     "rk4": "RK4",
     "verlet": "Velocity Verlet",
 }
+
+
+def observed_orders(errors: list[float], time_steps: tuple[float, ...]) -> list[float]:
+    """Calculate pairwise convergence orders for successive refinements."""
+    orders = [float("nan")]
+    for coarse_error, fine_error, coarse_dt, fine_dt in zip(
+        errors, errors[1:], time_steps, time_steps[1:]
+    ):
+        if (
+            np.isfinite(coarse_error)
+            and np.isfinite(fine_error)
+            and coarse_error > 0
+            and fine_error > 0
+        ):
+            orders.append(
+                float(
+                    np.log(coarse_error / fine_error)
+                    / np.log(coarse_dt / fine_dt)
+                )
+            )
+        else:
+            orders.append(float("nan"))
+    return orders
 
 
 @dataclass
@@ -247,24 +269,7 @@ def run_convergence_study(system: System, duration: float) -> None:
                 statuses.append(f"reference failed: {reference.failure}")
             else:
                 statuses.append("completed")
-        orders = [float("nan")]
-        for coarse_error, fine_error, coarse_dt, fine_dt in zip(
-            errors, errors[1:], time_steps, time_steps[1:]
-        ):
-            if (
-                np.isfinite(coarse_error)
-                and np.isfinite(fine_error)
-                and coarse_error > 0
-                and fine_error > 0
-            ):
-                orders.append(
-                    float(
-                        np.log(coarse_error / fine_error)
-                        / np.log(coarse_dt / fine_dt)
-                    )
-                )
-            else:
-                orders.append(float("nan"))
+        orders = observed_orders(errors, time_steps)
         for dt, error, runtime, order, status in zip(
             time_steps, errors, runtimes, orders, statuses
         ):

@@ -6,9 +6,9 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
+import numpy as np
 from matplotlib.animation import FuncAnimation
 from matplotlib.widgets import Button, Slider
-import numpy as np
 
 if TYPE_CHECKING:
     from .gui import OrbitalSystem

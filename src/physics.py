@@ -92,7 +92,7 @@ class Planet:
         elif method == "verlet":
             self.update_verlet(dt, central_mass, central_position)
         else:
-            raise ValueError("Unknown method: {}. Choose from 'euler', 'euler_implicit', 'rk4', or 'verlet'.".format(method))
+            raise ValueError(f"Unknown method: {method}. Choose from 'euler', 'euler_implicit', 'rk4', or 'verlet'.")
 
         self.trajectory.append(self.position.copy())
     def update_euler(
@@ -221,3 +221,62 @@ def analytical_circular_state(
         [-sin_angle, cos_angle * cos_inclination, cos_angle * sin_inclination]
     )
     return position, velocity
+
+
+def analytical_kepler_state(
+    central_mass: float,
+    semi_major_axis: float,
+    eccentricity: float,
+    inclination: float,
+    time: float,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Return an elliptical Kepler orbit at time ``time``.
+
+    The orbit starts at periapsis on the x-axis. ``inclination`` rotates the
+    perifocal y-axis into the y-z plane, matching :class:`Planet`.
+    """
+    if central_mass <= 0:
+        raise ValueError("Central mass must be positive.")
+    if semi_major_axis <= 0:
+        raise ValueError("Semi-major axis must be positive.")
+    if not 0 <= eccentricity < 1:
+        raise ValueError("Eccentricity must satisfy 0 <= e < 1.")
+    if time < 0:
+        raise ValueError("Time must not be negative.")
+
+    mu = G * central_mass
+    mean_motion = np.sqrt(mu / semi_major_axis**3)
+    mean_anomaly = mean_motion * time
+    eccentric_anomaly = mean_anomaly
+    for _ in range(20):
+        correction = (
+            eccentric_anomaly
+            - eccentricity * np.sin(eccentric_anomaly)
+            - mean_anomaly
+        ) / (1 - eccentricity * np.cos(eccentric_anomaly))
+        eccentric_anomaly -= correction
+        if abs(correction) < 1e-14:
+            break
+
+    cos_e, sin_e = np.cos(eccentric_anomaly), np.sin(eccentric_anomaly)
+    radius = semi_major_axis * (1 - eccentricity * cos_e)
+    position = np.array(
+        [
+            semi_major_axis * (cos_e - eccentricity),
+            semi_major_axis * np.sqrt(1 - eccentricity**2) * sin_e,
+            0.0,
+        ]
+    )
+    velocity_scale = np.sqrt(mu * semi_major_axis) / radius
+    velocity = velocity_scale * np.array(
+        [-sin_e, np.sqrt(1 - eccentricity**2) * cos_e, 0.0]
+    )
+    inclination_rad = np.radians(float(inclination))
+    rotation = np.array(
+        [
+            [1.0, 0.0, 0.0],
+            [0.0, np.cos(inclination_rad), -np.sin(inclination_rad)],
+            [0.0, np.sin(inclination_rad), np.cos(inclination_rad)],
+        ]
+    )
+    return rotation @ position, rotation @ velocity

@@ -119,8 +119,9 @@ successive time-step refinements.
 For a circular orbit, the analytical reference is
 `r(t) = R [cos(nt), sin(nt) cos(i), sin(nt) sin(i)]`, where
 `n = sqrt(GM/R^3)`. The numerical test suite compares RK4 against this
-solution. This is a validation case, not a replacement for a general
-elliptical Kepler solver.
+solution. The test suite also propagates an eccentric orbit using Kepler's
+equation, with eccentricity `e = 0.5`, and checks its periapsis state after
+one orbital period.
 
 ## Results
 
@@ -128,10 +129,24 @@ Run the benchmark locally to regenerate the figures and CSV. The expected
 qualitative result is first-order convergence for Explicit Euler, second-order
 convergence for Velocity Verlet, and fourth-order convergence for RK4 while
 the tested steps remain in their accuracy regime. Implicit Euler is also
-first-order and may fail to converge for an overly large step because it uses
-a finite Newton-Raphson iteration budget. The generated CSV reports the
-measured values for the current machine and should be used for exact numerical
-comparisons.
+first-order in its convergence regime, but may fail to converge for an
+overly large step because it uses a finite Newton-Raphson iteration budget.
+
+For the current ten-period Earth-Moon configuration, the generated CSV gives
+these representative results:
+
+| Method | Measured order | Energy behavior | Long-term behavior |
+| --- | ---: | --- | --- |
+| Explicit Euler | -0.40 to 0.12 | Energy grows | Orbit expands |
+| Implicit Euler | Not measurable for failed steps | Energy decreases | Orbit contracts |
+| RK4 | 4.19 to 4.60 | Small short-term error | Not symplectic |
+| Velocity Verlet | 2.00 | Bounded oscillatory error | Good long-term stability |
+
+The Euler values are not close to their theoretical first-order asymptotic
+limit for this deliberately long, coarse-step study; this is itself a useful
+warning against reporting theoretical orders without inspecting measured data.
+The generated CSV remains the authoritative result for exact values on the
+current machine.
 
 Run the automated checks with:
 
@@ -219,6 +234,5 @@ license notice are retained. The software is provided without warranty.
 - Orbital-element calculations.
 - Physical collision detection using body radii.
 - J2 perturbation, atmospheric drag, and radiation pressure.
-- Analytical Kepler-orbit comparisons.
 - Spacecraft transfers such as Hohmann and Lambert trajectories.
-- Automated unit and regression tests.
+- Benchmark result tables generated automatically from the CSV.

@@ -103,9 +103,9 @@ def clone_planet(planet: Planet) -> Planet:
     return Planet(
         planet.name,
         planet.mass,
-        np.linalg.norm(planet.position),
-        np.linalg.norm(planet.velocity),
-        np.degrees(planet.inclination),
+        float(np.linalg.norm(planet.position)),
+        float(np.linalg.norm(planet.velocity)),
+        float(np.degrees(planet.inclination)),
         planet.color,
         planet.size,
     )

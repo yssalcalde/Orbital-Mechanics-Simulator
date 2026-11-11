@@ -10,6 +10,7 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
+from numpy.typing import NDArray
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -126,11 +127,11 @@ def simulate(
     central_position = np.zeros(3, dtype=np.float64)
     planet = clone_planet(system.planet)
     steps = int(np.ceil(duration / dt))
-    times = np.arange(steps + 1, dtype=np.float64) * dt
-    positions = np.full((steps + 1, 3), np.nan)
-    velocities = np.full((steps + 1, 3), np.nan)
-    energies = np.full(steps + 1, np.nan)
-    angular_momenta = np.full((steps + 1, 3), np.nan)
+    times: NDArray[np.float64] = np.arange(steps + 1, dtype=np.float64) * dt
+    positions: NDArray[np.float64] = np.full((steps + 1, 3), np.nan)
+    velocities: NDArray[np.float64] = np.full((steps + 1, 3), np.nan)
+    energies: NDArray[np.float64] = np.full(steps + 1, np.nan)
+    angular_momenta: NDArray[np.float64] = np.full((steps + 1, 3), np.nan)
     positions[0] = planet.position
     velocities[0] = planet.velocity
     energies[0] = planet.specific_energy(system.central_mass, central_position)

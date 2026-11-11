@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.animation import FuncAnimation
+from matplotlib.artist import Artist
 from matplotlib.widgets import Button, Slider
 
 if TYPE_CHECKING:
@@ -57,7 +58,8 @@ def visualize_system(
             planet.trajectory = [planet.position.copy()]
         paused[0] = False
 
-    def update(_frame: int) -> None:
+    def update(_frame: int) -> list[Artist]:
+        artists: list[Artist] = []
         if not paused[0]:
             try:
                 for _ in range(frame_steps[0]):
@@ -74,29 +76,39 @@ def visualize_system(
 
         axis.clear()
         configure_axis()
-        axis.scatter(stars[:, 0], stars[:, 1], stars[:, 2], color="white", s=2, alpha=0.8)
-        axis.scatter(
+        artists.append(
+            axis.scatter(
+                stars[:, 0], stars[:, 1], stars[:, 2], color="white", s=2, alpha=0.8
+            )
+        )
+        artists.append(
+            axis.scatter(
             0,
             0,
             0,
             color=system.central_color,
             s=system.central_size**2,
             label=system.central_name,
+            )
         )
         for planet in system.planets:
             trajectory = np.asarray(planet.trajectory)
-            axis.plot(
-                trajectory[:, 0],
-                trajectory[:, 1],
-                trajectory[:, 2],
-                color=planet.color,
-                linewidth=1,
+            artists.extend(
+                axis.plot(
+                    trajectory[:, 0],
+                    trajectory[:, 1],
+                    trajectory[:, 2],
+                    color=planet.color,
+                    linewidth=1,
+                )
             )
-            axis.scatter(
-                *planet.position,
-                color=planet.color,
-                s=planet.size**2,
-                label=planet.name,
+            artists.append(
+                axis.scatter(
+                    *planet.position,
+                    color=planet.color,
+                    s=planet.size**2,
+                    label=planet.name,
+                )
             )
         if not paused[0]:
             axis.set_title(
@@ -108,6 +120,7 @@ def visualize_system(
         legend.get_frame().set_edgecolor("white")
         for text in legend.get_texts():
             text.set_color("white")
+        return artists
 
     def toggle_pause(_event) -> None:
         paused[0] = not paused[0]
